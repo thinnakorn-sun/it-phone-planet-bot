@@ -87,13 +87,27 @@ ADMIN_PASSWORD=ChangeMe123!
 
 `http://localhost/it-phone-planet-bot/apps/admin/login.php`
 
-### 5) ต่อ LINE Webhook
+### 5) Sync ไป XAMPP หลังแก้โค้ด
 
-Webhook URL:
+```bash
+bash scripts/sync-to-xampp.sh
+```
+
+เช็กระบบ:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/php scripts/check-setup.php
+```
+
+### 6) ต่อ LINE Webhook
+
+ดูขั้นตอนเต็มใน `docs/LINE-SETUP.md`
+
+Webhook URL (หลังเปิด ngrok):
 
 `https://<ngrok>/it-phone-planet-bot/apps/web/webhook.php`
 
-ใส่ `LINE_CHANNEL_SECRET` และ `LINE_CHANNEL_ACCESS_TOKEN` ใน `.env`
+ใส่ `LINE_CHANNEL_SECRET` และ `LINE_CHANNEL_ACCESS_TOKEN` ใน `.env` แล้ว sync อีกครั้ง
 
 ## ฟีเจอร์หลัก
 

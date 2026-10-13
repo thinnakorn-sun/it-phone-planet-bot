@@ -4,8 +4,25 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/bootstrap.php';
 
+use App\Env;
 use App\Helpers;
 use App\Line\WebhookHandler;
+
+// ให้เปิดในเบราว์เซอร์เช็กได้ว่า endpoint ขึ้น
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    $configured = (Env::get('LINE_CHANNEL_SECRET', '') !== '' && Env::get('LINE_CHANNEL_ACCESS_TOKEN', '') !== '');
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'service' => 'line-webhook',
+        'ok' => true,
+        'line_configured' => $configured,
+        'hint' => $configured
+            ? 'พร้อมรับ event จาก LINE'
+            : 'ใส่ LINE_CHANNEL_SECRET และ LINE_CHANNEL_ACCESS_TOKEN ใน .env แล้ว sync ก่อน Verify',
+        'webhook_url' => Helpers::appUrl('webhook.php'),
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
 
 try {
     $body = file_get_contents('php://input') ?: '';
