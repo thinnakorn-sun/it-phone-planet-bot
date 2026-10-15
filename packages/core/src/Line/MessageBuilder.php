@@ -16,11 +16,154 @@ final class MessageBuilder
     public static function welcome(): array
     {
         return self::text(
-            "สวัสดีครับ 👋\n" .
-            "ยินดีต้อนรับสู่ ITPhonePlanet\n" .
-            "ร้านค้าอุปกรณ์เสริมนาฬิกา\n\n" .
-            "ให้บอทช่วยอะไรได้บ้างครับ 😊"
+            "สวัสดีค่ะ 👏\n" .
+            "ยินดีต้อนรับสู่ ITPHONEPLANET\n" .
+            "กรุณาเข้าสู่ระบบหรือสมัครสมาชิก\n" .
+            "เพื่อใช้งานระบบสั่งซื้อสินค้า"
         );
+    }
+
+    /**
+     * ขั้นที่ 1: เข้าสู่ระบบ / สมัครสมาชิก (ตาม mockup)
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function authWelcome(string $loginUrl, string $registerUrl, bool $isMember = false): array
+    {
+        $footerButtons = [];
+        if (!$isMember) {
+            $footerButtons[] = [
+                'type' => 'button',
+                'style' => 'primary',
+                'color' => '#FF4D94',
+                'height' => 'md',
+                'action' => [
+                    'type' => 'uri',
+                    'label' => 'เข้าสู่ระบบ',
+                    'uri' => $loginUrl,
+                ],
+            ];
+            $footerButtons[] = [
+                'type' => 'button',
+                'style' => 'secondary',
+                'color' => '#FFFFFF',
+                'height' => 'md',
+                'action' => [
+                    'type' => 'uri',
+                    'label' => 'สมัครสมาชิก',
+                    'uri' => $registerUrl,
+                ],
+            ];
+        } else {
+            $footerButtons[] = [
+                'type' => 'button',
+                'style' => 'primary',
+                'color' => '#06C755',
+                'height' => 'md',
+                'action' => [
+                    'type' => 'message',
+                    'label' => 'เข้าสู่ระบบแล้ว ✓',
+                    'text' => 'เลือกซื้อสินค้า',
+                ],
+            ];
+        }
+
+        $footerButtons[] = [
+            'type' => 'button',
+            'style' => 'primary',
+            'color' => '#7EC8F5',
+            'height' => 'md',
+            'action' => [
+                'type' => 'message',
+                'label' => 'เลือกซื้อสินค้า',
+                'text' => 'เลือกซื้อสินค้า',
+            ],
+        ];
+
+        $intro = $isMember
+            ? "สวัสดีค่ะ 👏\nยินดีต้อนรับกลับสู่ ITPHONEPLANET\nคุณเข้าสู่ระบบแล้ว กดเลือกซื้อสินค้าได้เลย"
+            : "สวัสดีค่ะ 👏\nยินดีต้อนรับสู่ ITPHONEPLANET\nกรุณาเข้าสู่ระบบหรือสมัครสมาชิก\nเพื่อใช้งานระบบสั่งซื้อสินค้า";
+
+        return [
+            self::text($intro),
+            [
+                'type' => 'flex',
+                'altText' => 'เข้าสู่ระบบ / สมัครสมาชิก ITPHONEPLANET',
+                'contents' => [
+                    'type' => 'bubble',
+                    'size' => 'mega',
+                    'body' => [
+                        'type' => 'box',
+                        'layout' => 'vertical',
+                        'spacing' => 'md',
+                        'contents' => [
+                            [
+                                'type' => 'box',
+                                'layout' => 'horizontal',
+                                'spacing' => 'md',
+                                'contents' => [
+                                    [
+                                        'type' => 'box',
+                                        'layout' => 'vertical',
+                                        'contents' => [[
+                                            'type' => 'text',
+                                            'text' => 'iT',
+                                            'color' => '#FFFFFF',
+                                            'weight' => 'bold',
+                                            'size' => 'sm',
+                                            'align' => 'center',
+                                        ]],
+                                        'backgroundColor' => '#111111',
+                                        'cornerRadius' => '40px',
+                                        'width' => '52px',
+                                        'height' => '52px',
+                                        'justifyContent' => 'center',
+                                    ],
+                                    [
+                                        'type' => 'box',
+                                        'layout' => 'vertical',
+                                        'contents' => [
+                                            [
+                                                'type' => 'text',
+                                                'text' => 'ITPHONEPLANET',
+                                                'weight' => 'bold',
+                                                'size' => 'md',
+                                                'color' => '#111111',
+                                            ],
+                                            [
+                                                'type' => 'text',
+                                                'text' => 'ร้านจำหน่ายอุปกรณ์ไอทีและมือถือ',
+                                                'size' => 'xs',
+                                                'color' => '#888888',
+                                                'wrap' => true,
+                                            ],
+                                        ],
+                                        'flex' => 1,
+                                        'justifyContent' => 'center',
+                                    ],
+                                ],
+                            ],
+                            ['type' => 'separator', 'margin' => 'md'],
+                            [
+                                'type' => 'text',
+                                'text' => $isMember
+                                    ? "สวัสดีค่ะ 👏\nคุณเข้าสู่ระบบแล้ว พร้อมสั่งซื้อสินค้าได้เลย"
+                                    : "สวัสดีค่ะ 👏\nยินดีต้อนรับสู่ ITPHONEPLANET\nกรุณาเข้าสู่ระบบหรือสมัครสมาชิก\nเพื่อใช้งานระบบสั่งซื้อสินค้า",
+                                'wrap' => true,
+                                'size' => 'sm',
+                                'color' => '#333333',
+                            ],
+                        ],
+                    ],
+                    'footer' => [
+                        'type' => 'box',
+                        'layout' => 'vertical',
+                        'spacing' => 'sm',
+                        'contents' => $footerButtons,
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**

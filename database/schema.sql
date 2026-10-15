@@ -36,12 +36,18 @@ CREATE TABLE `customers` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `line_user_id` VARCHAR(64) NOT NULL,
   `display_name` VARCHAR(255) NULL,
+  `email` VARCHAR(190) NULL,
+  `password_hash` VARCHAR(255) NULL,
+  `is_member` TINYINT(1) NOT NULL DEFAULT 0,
+  `member_name` VARCHAR(255) NULL,
+  `last_login_at` DATETIME NULL,
   `phone` VARCHAR(30) NULL,
   `address` TEXT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_customers_line_user_id` (`line_user_id`)
+  UNIQUE KEY `uk_customers_line_user_id` (`line_user_id`),
+  UNIQUE KEY `uk_customers_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `categories` (

@@ -37,7 +37,9 @@ if (!$customer) {
     <main class="order-wrap">
         <div class="card">
             <h2 style="margin-top:0">ข้อมูลของคุณ</h2>
-            <div class="kv"><span class="label">ชื่อ</span><span class="value"><?= Helpers::e($customer['display_name'] ?: '-') ?></span></div>
+            <div class="kv"><span class="label">สถานะ</span><span class="value"><?= !empty($customer['is_member']) ? 'สมาชิกแล้ว' : 'ยังไม่เข้าสู่ระบบ' ?></span></div>
+            <div class="kv"><span class="label">ชื่อ</span><span class="value"><?= Helpers::e($customer['member_name'] ?: $customer['display_name'] ?: '-') ?></span></div>
+            <div class="kv"><span class="label">อีเมล</span><span class="value"><?= Helpers::e($customer['email'] ?: '-') ?></span></div>
             <div class="kv"><span class="label">เบอร์โทร</span><span class="value"><?= Helpers::e($customer['phone'] ?: '-') ?></span></div>
             <div class="kv"><span class="label">ที่อยู่</span><span class="value"><?= Helpers::e($customer['address'] ?: '-') ?></span></div>
             <p class="muted" style="margin-top:12px">ข้อมูลนี้เป็นของบัญชี LINE คุณเท่านั้น คนอื่นเปิดลิงก์นี้ไม่ได้</p>

@@ -10,6 +10,7 @@ use App\Repositories\FaqRepository;
 use App\Repositories\OrderRepository;
 use App\Repositories\ProductRepository;
 use App\Repositories\SessionRepository;
+use App\Security\AuthAccess;
 use App\Security\CustomerAccess;
 use App\Security\OrderToken;
 use App\Services\OrderService;
@@ -114,7 +115,7 @@ final class WebhookHandler
         $customer = $this->customers->findOrCreateByLineId($lineUserId);
 
         if ($type === 'follow' || $type === 'join') {
-            $this->reply($replyToken, [MessageBuilder::mainMenuQuickReply()]);
+            $this->replyAuthWelcome($replyToken, $customer);
             return;
         }
 
@@ -123,6 +124,10 @@ final class WebhookHandler
             $messageType = $message['type'] ?? '';
 
             if ($messageType === 'image') {
+                if (!$this->customers->isMember($customer)) {
+                    $this->replyAuthWelcome($replyToken, $customer);
+                    return;
+                }
                 $this->handleImage($replyToken, $customer, (string) ($message['id'] ?? ''));
                 return;
             }
@@ -133,7 +138,7 @@ final class WebhookHandler
             }
         }
 
-        $this->reply($replyToken, [MessageBuilder::mainMenuQuickReply()]);
+        $this->replyAuthWelcome($replyToken, $customer);
     }
 
     private function handleImage(string $replyToken, array $customer, string $messageId): void
@@ -226,40 +231,58 @@ final class WebhookHandler
         $session = $this->sessions->get($lineUserId);
         $normalized = mb_strtolower($text);
 
-        if (in_array($normalized, ['เมนู', 'menu', 'สวัสดี', 'สวัสดีครับ', 'สวัสดีค่ะ', 'hello', 'hi', 'เริ่มต้น'], true)) {
+        if (in_array($normalized, ['เมนู', 'menu', 'สวัสดี', 'สวัสดีครับ', 'สวัสดีค่ะ', 'hello', 'hi', 'เริ่มต้น', 'เข้าสู่ระบบ', 'สมัครสมาชิก', 'สมัคร'], true)) {
             $this->sessions->clear($lineUserId);
-            $this->reply($replyToken, [MessageBuilder::mainMenuQuickReply()]);
+            $this->replyAuthWelcome($replyToken, $customer);
             return;
         }
 
         if ($session['state'] === 'awaiting_confirm') {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->handleConfirm($replyToken, $customer, $session, $normalized);
             return;
         }
 
         if ($session['state'] === 'awaiting_shipping') {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->completeOrderFromShipping($replyToken, $customer, $session, $text);
             return;
         }
 
         if ($session['state'] === 'awaiting_qty') {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->handleQuantity($replyToken, $customer, $session, $text);
             return;
         }
 
         if (preg_match('/^หมวด\s+(\d+)$/u', $text, $m)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->replyCategoryProducts($replyToken, (int) $m[1]);
             return;
         }
 
         $categoryByName = $this->products->findCategoryByName($text);
         if ($categoryByName) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $products = $this->products->productsByCategory((int) $categoryByName['id']);
             $this->reply($replyToken, MessageBuilder::products($products, (string) $categoryByName['name']));
             return;
         }
 
         if (preg_match('/^สินค้า\s+(\d+)$/u', $text, $m)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $product = $this->products->find((int) $m[1]);
             if (!$product || !(int) $product['is_active']) {
                 $this->reply($replyToken, [MessageBuilder::text('ไม่พบสินค้านี้ครับ')]);
@@ -270,6 +293,9 @@ final class WebhookHandler
         }
 
         if (preg_match('/^สั่งซื้อ\s+(\d+)$/u', $text, $m)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $product = $this->products->find((int) $m[1]);
             if (!$product || !(int) $product['is_active']) {
                 $this->reply($replyToken, [MessageBuilder::text('ไม่พบสินค้านี้ครับ')]);
@@ -288,22 +314,34 @@ final class WebhookHandler
             return;
         }
 
-        if (in_array($normalized, ['สินค้า', 'ดูสินค้า', 'เลือกสินค้า', 'ดูสินค้าทั้งหมด'], true)) {
+        if (in_array($normalized, ['สินค้า', 'ดูสินค้า', 'เลือกสินค้า', 'ดูสินค้าทั้งหมด', 'เลือกซื้อสินค้า', 'ซื้อสินค้า'], true)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->reply($replyToken, MessageBuilder::categories($this->products->allActiveCategories()));
             return;
         }
 
         if (in_array($normalized, ['สถานะ', 'ติดตามพัสดุ', 'เลขพัสดุ', 'พัสดุ', 'ตรวจสอบคำสั่งซื้อ', 'ประวัติการสั่งซื้อ', 'ประวัติ'], true)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->replyCustomerPortal($replyToken, $customer, 'history');
             return;
         }
 
         if (in_array($normalized, ['บัญชีของฉัน', 'บัญชี', 'โปรไฟล์'], true)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->replyCustomerPortal($replyToken, $customer, 'account');
             return;
         }
 
         if (in_array($normalized, ['หน้าหลัก', 'หน้าแรก', 'โฮม'], true)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->replyCustomerPortal($replyToken, $customer, 'home');
             return;
         }
@@ -315,6 +353,9 @@ final class WebhookHandler
         }
 
         if (in_array($normalized, ['แจ้งชำระเงิน', 'แนบสลิป', 'ส่งสลิป'], true)) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $order = $this->orders->pendingPaymentOrderForCustomer((int) $customer['id']);
             if (!$order) {
                 $latest = $this->orders->latestForCustomer((int) $customer['id']);
@@ -360,13 +401,48 @@ final class WebhookHandler
 
         $found = $this->products->search($text);
         if ($found !== []) {
+            if (!$this->ensureMember($replyToken, $customer)) {
+                return;
+            }
             $this->reply($replyToken, MessageBuilder::products($found, 'สินค้าที่ค้นหา'));
+            return;
+        }
+
+        if (!$this->customers->isMember($customer)) {
+            $this->replyAuthWelcome($replyToken, $customer);
             return;
         }
 
         $this->reply($replyToken, [MessageBuilder::text(
             "ยังไม่เข้าใจคำถามนี้ครับ\nพิมพ์ \"เมนู\" หรือกด Rich Menu ด้านล่างได้เลย"
         )]);
+    }
+
+    /**
+     * @param array<string, mixed> $customer
+     */
+    private function replyAuthWelcome(string $replyToken, array $customer): void
+    {
+        $lineUserId = (string) $customer['line_user_id'];
+        $customerId = (int) $customer['id'];
+        $loginUrl = AuthAccess::loginUrl($lineUserId, $customerId);
+        $registerUrl = AuthAccess::registerUrl($lineUserId, $customerId);
+        $this->reply(
+            $replyToken,
+            MessageBuilder::authWelcome($loginUrl, $registerUrl, $this->customers->isMember($customer))
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $customer
+     */
+    private function ensureMember(string $replyToken, array $customer): bool
+    {
+        if ($this->customers->isMember($customer)) {
+            return true;
+        }
+        $this->replyAuthWelcome($replyToken, $customer);
+        return false;
     }
 
     private function handleConfirm(string $replyToken, array $customer, array $session, string $normalized): void
