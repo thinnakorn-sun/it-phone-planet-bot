@@ -107,6 +107,16 @@ ob_start();
                         <button class="btn-danger" type="submit">ปฏิเสธสลิป</button>
                     </form>
                 </div>
+            <?php elseif ($order['status'] === 'paid'): ?>
+                <p class="muted">สถานะ: ชำระเงินแล้ว (อัปเดตอัตโนมัติหลังรับสลิป) — ใส่เลขพัสดุด้านล่างเพื่อจัดส่ง</p>
+                <div class="actions">
+                    <form method="post">
+                        <input type="hidden" name="action" value="reject">
+                        <label>ถ้าสลิปไม่ถูกต้อง ปฏิเสธได้ที่นี่</label>
+                        <input type="text" name="reason" placeholder="เช่น ยอดไม่ตรง">
+                        <button class="btn-danger" type="submit">ปฏิเสธสลิป</button>
+                    </form>
+                </div>
             <?php endif; ?>
         <?php else: ?>
             <p class="muted">ยังไม่มีสลิป</p>

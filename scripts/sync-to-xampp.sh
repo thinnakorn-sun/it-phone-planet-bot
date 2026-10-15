@@ -18,8 +18,10 @@ rsync -a --delete \
   --include='storage/slips/.gitkeep' \
   "$ROOT/" "$DEST/"
 
-# ให้ Apache เขียนสลิป/ไฟล์ log ได้ตอนทดสอบ local
-chmod -R u+rwX,g+rwX "$DEST/storage" || true
+# Apache (user: daemon) ต้องเขียนสลิป/log ได้ — ไม่งั้นรับสลิปแล้วเงียบและสถานะไม่อัปเดต
+mkdir -p "$DEST/storage/slips" "$DEST/storage/logs" "$ROOT/storage/slips" "$ROOT/storage/logs"
+chmod -R a+rwX "$DEST/storage" "$ROOT/storage" || true
+chmod 777 "$DEST/storage/slips" "$DEST/storage/logs" "$ROOT/storage/slips" "$ROOT/storage/logs" || true
 
 echo "Synced:"
 echo "  from: $ROOT"

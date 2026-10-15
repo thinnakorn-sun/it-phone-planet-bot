@@ -26,6 +26,7 @@ $appName = Env::get('APP_NAME', 'iT Phone Planet Chatbot');
         <li>หน้าแอดมิน: <a href="<?= Helpers::e(Helpers::adminUrl('login.php')) ?>">เข้าสู่ระบบผู้ดูแล</a></li>
         <li>ติดตั้งเริ่มต้น: <a href="<?= Helpers::e(Helpers::appUrl('install.php')) ?>">install.php</a></li>
     </ul>
+    <p class="muted">ลูกค้าเลือกสินค้าและดูประวัติออเดอร์ผ่าน LINE เท่านั้น</p>
 </main>
 </body>
 </html>

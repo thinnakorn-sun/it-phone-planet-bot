@@ -80,6 +80,9 @@ final class LineClient
         $ch = curl_init('https://api-data.line.me/v2/bot/message/' . rawurlencode($messageId) . '/content');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => 45,
             CURLOPT_HTTPHEADER => [
                 'Authorization: Bearer ' . $this->accessToken,
             ],
@@ -91,10 +94,10 @@ final class LineClient
         curl_close($ch);
 
         if ($result === false || $status >= 400) {
-            throw new \RuntimeException('Failed to download LINE content: ' . ($error ?: "HTTP {$status}"));
+            throw new \RuntimeException('ดึงรูปจาก LINE ไม่สำเร็จ: ' . ($error ?: "HTTP {$status}"));
         }
 
-        return $result;
+        return (string) $result;
     }
 
     /**

@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $editId = isset($_GET['edit']) ? (int) $_GET['edit'] : 0;
 $edit = $editId > 0 ? $repo->find($editId) : null;
 $products = $repo->allForAdmin();
+$editImage = $edit ? Helpers::localProductImageUrl($edit['image_url'] ?? null) : null;
 
 ob_start();
 ?>
@@ -91,8 +92,14 @@ ob_start();
                 <input type="number" name="stock" required value="<?= Helpers::e((string) ($edit['stock'] ?? '0')) ?>">
             </div>
         </div>
-        <label>ลิงก์รูปภาพ (ถ้ามี)</label>
-        <input type="url" name="image_url" value="<?= Helpers::e($edit['image_url'] ?? '') ?>">
+        <label>ชื่อไฟล์รูป / URL รูป</label>
+        <input type="text" name="image_url" placeholder="เช่น watch-sport-band.png" value="<?= Helpers::e($edit['image_url'] ?? '') ?>">
+        <p class="muted">เก็บไฟล์ไว้ที่ <code>apps/web/assets/products/</code> แล้วใส่ชื่อไฟล์ในช่องนี้</p>
+        <?php if ($editImage): ?>
+            <p>พรีวิวปัจจุบัน:<br>
+                <img src="<?= Helpers::e($editImage) ?>" alt="preview" style="max-width:180px;border:1px solid #d9e2ec;border-radius:8px;margin-top:8px">
+            </p>
+        <?php endif; ?>
         <label><input type="checkbox" name="is_active" <?= !$edit || (int) $edit['is_active'] === 1 ? 'checked' : '' ?>"> เปิดขาย</label>
         <p><button type="submit"><?= $edit ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า' ?></button>
         <?php if ($edit): ?> <a class="btn btn-secondary" href="products.php">ยกเลิก</a><?php endif; ?></p>
@@ -104,23 +111,34 @@ ob_start();
     <table>
         <thead>
         <tr>
+            <th>รูป</th>
             <th>ID</th>
             <th>สินค้า</th>
             <th>หมวด</th>
             <th>ราคา</th>
             <th>สต๊อก</th>
+            <th>ไฟล์รูป</th>
             <th>สถานะ</th>
             <th></th>
         </tr>
         </thead>
         <tbody>
         <?php foreach ($products as $product): ?>
+            <?php $thumb = Helpers::localProductImageUrl($product['image_url'] ?? null); ?>
             <tr>
+                <td>
+                    <?php if ($thumb): ?>
+                        <img src="<?= Helpers::e($thumb) ?>" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #d9e2ec">
+                    <?php else: ?>
+                        <span class="muted">ไม่มีรูป</span>
+                    <?php endif; ?>
+                </td>
                 <td><?= (int) $product['id'] ?></td>
                 <td><?= Helpers::e($product['name']) ?></td>
                 <td><?= Helpers::e($product['category_name']) ?></td>
                 <td><?= Helpers::e(Helpers::money($product['price'])) ?></td>
                 <td><?= (int) $product['stock'] ?></td>
+                <td><code><?= Helpers::e($product['image_url'] ?: '-') ?></code></td>
                 <td><?= (int) $product['is_active'] ? 'เปิด' : 'ปิด' ?></td>
                 <td><a href="products.php?edit=<?= (int) $product['id'] ?>">แก้ไข</a></td>
             </tr>

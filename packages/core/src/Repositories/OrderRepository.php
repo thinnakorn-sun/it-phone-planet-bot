@@ -22,8 +22,8 @@ final class OrderRepository
         try {
             $stmt = $this->db->prepare(
                 'INSERT INTO orders
-                (order_code, customer_id, status, total_amount, shipping_name, shipping_phone, shipping_address)
-                VALUES (?, ?, ?, ?, ?, ?, ?)'
+                (order_code, customer_id, status, total_amount, shipping_name, shipping_phone, shipping_address, payment_method)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $order['order_code'],
@@ -33,6 +33,7 @@ final class OrderRepository
                 $order['shipping_name'],
                 $order['shipping_phone'],
                 $order['shipping_address'],
+                $order['payment_method'] ?? 'โอนเงินผ่านธนาคาร',
             ]);
             $orderId = (int) $this->db->lastInsertId();
 
@@ -96,6 +97,32 @@ final class OrderRepository
         $stmt->execute([$customerId]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    public function listForCustomer(int $customerId, ?string $status = null): array
+    {
+        if ($status) {
+            $map = [
+                'pending' => ['pending_payment', 'awaiting_review'],
+                'shipping' => ['paid', 'shipping'],
+                'completed' => ['completed'],
+            ];
+            $statuses = $map[$status] ?? [$status];
+            $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+            $stmt = $this->db->prepare(
+                "SELECT * FROM orders
+                 WHERE customer_id = ? AND status IN ($placeholders)
+                 ORDER BY id DESC"
+            );
+            $stmt->execute(array_merge([$customerId], $statuses));
+            return $stmt->fetchAll();
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT * FROM orders WHERE customer_id = ? ORDER BY id DESC'
+        );
+        $stmt->execute([$customerId]);
+        return $stmt->fetchAll();
     }
 
     public function items(int $orderId): array
@@ -164,7 +191,7 @@ final class OrderRepository
         return $row ?: null;
     }
 
-    public function reviewPayment(int $paymentId, string $status, int $adminId): void
+    public function reviewPayment(int $paymentId, string $status, ?int $adminId = null): void
     {
         $stmt = $this->db->prepare(
             'UPDATE payments SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?'
@@ -176,7 +203,7 @@ final class OrderRepository
     {
         $stmt = $this->db->prepare(
             "SELECT * FROM orders
-             WHERE customer_id = ? AND status IN ('pending_payment', 'awaiting_review')
+             WHERE customer_id = ? AND status IN ('pending_payment', 'awaiting_review', 'rejected')
              ORDER BY id DESC
              LIMIT 1"
         );

@@ -32,7 +32,8 @@ final class OrderService
         int $quantity,
         string $shippingName,
         string $shippingPhone,
-        string $shippingAddress
+        string $shippingAddress,
+        string $paymentMethod = 'โอนเงินผ่านธนาคาร'
     ): array {
         $product = $this->products->find($productId);
         if (!$product || !(int) $product['is_active']) {
@@ -56,6 +57,7 @@ final class OrderService
                 'shipping_name' => $shippingName,
                 'shipping_phone' => $shippingPhone,
                 'shipping_address' => $shippingAddress,
+                'payment_method' => $paymentMethod,
             ],
             [[
                 'product_id' => $productId,
@@ -74,6 +76,25 @@ final class OrderService
         );
 
         return $order;
+    }
+
+    public function pushOrderCreated(array $order, array $items = []): void
+    {
+        if (!$this->line->isConfigured() || empty($order['line_user_id'])) {
+            return;
+        }
+
+        $messages = \App\Line\MessageBuilder::orderSuccessCard($order, $items);
+        $messages[] = [
+            'type' => 'text',
+            'text' => $this->paymentInstructions($order) . "\n\nเมื่อโอนแล้ว กดเมนู \"แจ้งชำระเงิน\" แล้วส่งรูปสลิปมาได้เลยครับ",
+        ];
+
+        try {
+            $this->line->push($order['line_user_id'], $messages);
+        } catch (\Throwable $e) {
+            Helpers::log('pushOrderCreated failed: ' . $e->getMessage());
+        }
     }
 
     public function paymentInstructions(array $order): string
@@ -104,9 +125,15 @@ final class OrderService
         $filename = $order['order_code'] . '_' . time() . '.' . $ext;
         $relative = 'storage/slips/' . $filename;
         $absolute = Helpers::basePath($relative);
-        if (file_put_contents($absolute, $binaryContent) === false) {
-            throw new \RuntimeException('บันทึกสลิปไม่สำเร็จ');
+        $dir = dirname($absolute);
+        if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
+            throw new \RuntimeException('สร้างโฟลเดอร์สลิปไม่สำเร็จ');
         }
+        @chmod($dir, 0777);
+        if (file_put_contents($absolute, $binaryContent) === false) {
+            throw new \RuntimeException('บันทึกสลิปไม่สำเร็จ (ตรวจสิทธิ์โฟลเดอร์ storage/slips)');
+        }
+        @chmod($absolute, 0666);
 
         $ocrText = null;
         $ocrAmount = null;
@@ -116,14 +143,16 @@ final class OrderService
             $ocrAmount = $ocr['amount'] ?? null;
         }
 
-        $this->orders->addPayment($orderId, $relative, $messageId, $ocrText, $ocrAmount);
-        $this->orders->updateStatus($orderId, 'awaiting_review');
+        $paymentId = $this->orders->addPayment($orderId, $relative, $messageId, $ocrText, $ocrAmount);
+
+        // รับสลิปแล้ว → เปลี่ยนเป็นชำระเงินแล้ว และตัดสต๊อก
+        $this->markOrderPaid($orderId, $paymentId, null);
 
         $this->notifyAdmins(
             "มีสลิปใหม่ของออเดอร์ {$order['order_code']}\n" .
             'ยอดออเดอร์: ' . Helpers::money($order['total_amount']) .
             ($ocrAmount !== null ? "\nOCR อ่านได้: " . Helpers::money($ocrAmount) : '') .
-            "\nกรุณาตรวจในหน้าแอดมิน"
+            "\nสถานะอัปเดตเป็น: ชำระเงินแล้ว\nกรุณาเตรียมจัดส่งและใส่เลขพัสดุในหน้าแอดมิน"
         );
 
         return $this->orders->find($orderId) ?? $order;
@@ -141,24 +170,12 @@ final class OrderService
             throw new \RuntimeException('ยังไม่มีสลิปในออเดอร์นี้');
         }
 
-        $items = $this->orders->items($orderId);
-        foreach ($items as $item) {
-            if (!empty($item['product_id'])) {
-                $product = $this->products->find((int) $item['product_id']);
-                if ($product && (int) $product['stock'] < (int) $item['quantity']) {
-                    throw new \RuntimeException('สต๊อกไม่พอ ไม่สามารถอนุมัติได้');
-                }
-            }
+        // ถ้าสถานะเป็น paid อยู่แล้ว (จากแนบสลิปอัตโนมัติ) แค่ยืนยันในระบบ
+        if ($order['status'] === 'paid' && ($payment['status'] ?? '') === 'approved') {
+            return $order;
         }
 
-        foreach ($items as $item) {
-            if (!empty($item['product_id'])) {
-                $this->products->adjustStock((int) $item['product_id'], -1 * (int) $item['quantity']);
-            }
-        }
-
-        $this->orders->reviewPayment((int) $payment['id'], 'approved', $adminId);
-        $this->orders->updateStatus($orderId, 'paid');
+        $this->markOrderPaid($orderId, (int) $payment['id'], $adminId);
 
         $updated = $this->orders->find($orderId);
         if ($updated && $this->line->isConfigured()) {
@@ -171,11 +188,47 @@ final class OrderService
         return $updated ?? $order;
     }
 
+    /**
+     * ตัดสต๊อก + อนุมัติสลิป + ตั้งสถานะเป็นชำระเงินแล้ว
+     */
+    private function markOrderPaid(int $orderId, int $paymentId, ?int $adminId): void
+    {
+        $items = $this->orders->items($orderId);
+        $order = $this->orders->find($orderId);
+        $alreadyPaid = $order && $order['status'] === 'paid';
+
+        if (!$alreadyPaid) {
+            foreach ($items as $item) {
+                if (empty($item['product_id'])) {
+                    continue;
+                }
+                $product = $this->products->find((int) $item['product_id']);
+                if ($product && (int) $product['stock'] < (int) $item['quantity']) {
+                    Helpers::log("markOrderPaid stock low for product {$item['product_id']} order {$orderId}");
+                    continue;
+                }
+                $this->products->adjustStock((int) $item['product_id'], -1 * (int) $item['quantity']);
+            }
+        }
+
+        $this->orders->reviewPayment($paymentId, 'approved', $adminId);
+        $this->orders->updateStatus($orderId, 'paid');
+    }
+
     public function rejectPayment(int $orderId, int $adminId, string $reason = ''): array
     {
         $order = $this->orders->find($orderId);
         if (!$order) {
             throw new \RuntimeException('ไม่พบคำสั่งซื้อ');
+        }
+
+        // ถ้าเคยตัดสต๊อกตอนชำระแล้ว ให้คืนสต๊อกเมื่อปฏิเสธ
+        if (in_array($order['status'], ['paid', 'shipping'], true)) {
+            foreach ($this->orders->items($orderId) as $item) {
+                if (!empty($item['product_id'])) {
+                    $this->products->adjustStock((int) $item['product_id'], (int) $item['quantity']);
+                }
+            }
         }
 
         $payment = $this->orders->latestPayment($orderId);

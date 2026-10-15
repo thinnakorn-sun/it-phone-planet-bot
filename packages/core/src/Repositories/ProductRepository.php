@@ -40,6 +40,16 @@ final class ProductRepository
         return $row ?: null;
     }
 
+    public function findCategoryByName(string $name): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM categories WHERE is_active = 1 AND name = ? LIMIT 1'
+        );
+        $stmt->execute([trim($name)]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function productsByCategory(int $categoryId): array
     {
         $stmt = $this->db->prepare(

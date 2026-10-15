@@ -91,6 +91,7 @@ CREATE TABLE `orders` (
   `shipping_name` VARCHAR(255) NULL,
   `shipping_phone` VARCHAR(30) NULL,
   `shipping_address` TEXT NULL,
+  `payment_method` VARCHAR(80) NULL,
   `tracking_number` VARCHAR(100) NULL,
   `admin_note` TEXT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

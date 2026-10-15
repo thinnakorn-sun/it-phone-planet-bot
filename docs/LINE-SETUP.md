@@ -31,22 +31,32 @@ bash scripts/sync-to-xampp.sh
 
 ## 3) เปิด Webhook ให้ LINE เข้าถึงเครื่องคุณได้
 
-เครื่อง local ต้องมี public URL เช่น ngrok:
+เครื่อง local ต้องมี public URL
+
+### วิธีที่ใช้ตอนนี้: Cloudflare Tunnel
 
 ```bash
+cloudflared tunnel --url http://127.0.0.1:80
+```
+
+คัดลอก URL ที่ได้ แล้วตั้ง Webhook ใน LINE Developers เป็น:
+
+```text
+https://<tunnel-id>.trycloudflare.com/it-phone-planet-bot/apps/web/webhook.php
+```
+
+### หรือใช้ ngrok (ต้อง login ก่อน)
+
+```bash
+ngrok config add-authtoken <TOKEN>
 ngrok http 80
 ```
 
-แล้วตั้ง Webhook URL ใน LINE Developers เป็น:
-
-```text
-https://<ngrok-id>.ngrok-free.app/it-phone-planet-bot/apps/web/webhook.php
-```
-
-จากนั้น:
+จากนั้นใน LINE Developers:
 - เปิด **Use webhook**
+- วาง Webhook URL
 - กด **Verify**
-- ปิด **Auto-reply messages** / **Greeting messages** ของ LINE OA ที่ชนกับบอท (ถ้ามี)
+- ปิด **Auto-reply messages** / **Greeting messages** ของ LINE OA ที่ชนกับบอท
 
 ## 4) เทสเร็วๆ ใน LINE
 
