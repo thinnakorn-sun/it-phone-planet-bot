@@ -137,7 +137,16 @@ ob_start();
                 <td><?= Helpers::e($product['name']) ?></td>
                 <td><?= Helpers::e($product['category_name']) ?></td>
                 <td><?= Helpers::e(Helpers::money($product['price'])) ?></td>
-                <td><?= (int) $product['stock'] ?></td>
+                <td>
+                    <?php
+                    $stock = (int) $product['stock'];
+                    $stockColor = $stock <= 0 ? '#be123c' : ($stock <= 5 ? '#b45309' : '#0f766e');
+                    ?>
+                    <strong style="color:<?= $stockColor ?>"><?= $stock ?></strong>
+                    <?php if ($stock <= 0): ?><span class="muted"> หมด</span>
+                    <?php elseif ($stock <= 5): ?><span class="muted"> ใกล้หมด</span>
+                    <?php endif; ?>
+                </td>
                 <td><code><?= Helpers::e($product['image_url'] ?: '-') ?></code></td>
                 <td><?= (int) $product['is_active'] ? 'เปิด' : 'ปิด' ?></td>
                 <td><a href="products.php?edit=<?= (int) $product['id'] ?>">แก้ไข</a></td>
